@@ -14,7 +14,7 @@ on:
 
 jobs:
   prep:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       version: ${{ steps.init.outputs.version }}
       release: ${{ steps.init.outputs.release }}
@@ -36,7 +36,7 @@ jobs:
 
   snapshot:
     needs: prep
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
   release:
     needs: prep
     if: github.event_name != 'pull_request' && needs.prep.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       -
         name: Checkout
@@ -134,66 +134,3 @@ jobs:
             build/libs/*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  sonar:
-    needs: prep
-    runs-on: ubuntu-latest
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      -
-        name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          java-package: jdk
-          distribution: 'zulu'
-      -
-        name: Cache deps
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      -
-        name: Test and Sonar
-        if: ${{ env.SONAR_TOKEN != null }}
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            ./gradlew test sonar \
-              -Dsonar.gradle.skipCompile=true \
-              -Dsonar.pullrequest.provider=github \
-              -Dsonar.pullrequest.github.repository=${{ github.repository }} \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.organization=${SONAR_ORG_KEY} \
-              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-              -Dsonar.pullrequest.key=${{ github.event.number }} \
-              -Dsonar.pullrequest.base=${{ github.base_ref }}
-          elif [ "${{ needs.prep.outputs.release }}" = 'true' ]; then
-            ./gradlew test sonar \
-              -Dsonar.gradle.skipCompile=true \
-              -Dsonar.pullrequest.provider=github \
-              -Dsonar.pullrequest.github.repository=${{ github.repository }} \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.organization=${SONAR_ORG_KEY} \
-              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-              -Dsonar.projectVersion=${{ needs.prep.outputs.version }}
-          else
-            ./gradlew test sonar \
-              -Dsonar.gradle.skipCompile=true \
-              -Dsonar.pullrequest.provider=github \
-              -Dsonar.pullrequest.github.repository=${{ github.repository }} \
-              -Dsonar.host.url=https://sonarcloud.io \
-              -Dsonar.organization=${SONAR_ORG_KEY} \
-              -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-              -Dsonar.branch.name=${GITHUB_REF##*/}
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_ORG_KEY: ${{ secrets.SONAR_ORG_KEY }}
-          SONAR_PROJECT_KEY: ${{ secrets.SONAR_PROJECT_KEY }}
