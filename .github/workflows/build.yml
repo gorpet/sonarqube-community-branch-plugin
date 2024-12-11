@@ -14,7 +14,7 @@ on:
 
 jobs:
   prep:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.init.outputs.version }}
       release: ${{ steps.init.outputs.release }}
@@ -36,7 +36,7 @@ jobs:
 
   snapshot:
     needs: prep
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +76,7 @@ jobs:
   release:
     needs: prep
     if: github.event_name != 'pull_request' && needs.prep.outputs.release == 'true'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       -
         name: Checkout
